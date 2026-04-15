@@ -18,6 +18,9 @@ jobs:
       - name: Run Docker container
         run: docker run -d -p 8000:8000 --name django-container django-app
 
+      - name: Check container is running
+        run: docker ps
+        
       - name: Wait for container to start
         run: sleep 15
 
