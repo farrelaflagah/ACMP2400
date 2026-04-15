@@ -19,7 +19,7 @@ jobs:
         run: docker run -d -p 8000:8000 --name django-container django-app
 
       - name: Wait for container to start
-        run: sleep 5
+        run: sleep 15
 
       - name: Test with curl
         run: curl -f http://localhost:8000
