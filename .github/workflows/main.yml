@@ -45,7 +45,7 @@ jobs:
           path: sbom.json
           compression-level: 0
 
-terraform-stage-1:
+  terraform-stage-1:
     needs: [build-and-curl, sbom-scan-and-test]
     runs-on: ubuntu-latest
     steps:
