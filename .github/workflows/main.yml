@@ -8,7 +8,7 @@ on:
 permissions: {}
 
 jobs:
-  build-and-test:
+  build-and-curl:
     runs-on: ubuntu-latest
     steps:
       - name: get_code
@@ -19,10 +19,28 @@ jobs:
           docker build -t pipeline-test .
 
       - name: docker_run
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         run: |
-          docker run -d -p 8000:8000 -e 'DJANGO_SECRET_KEY=devpassworddontuseme' pipeline-test
+          docker run -d -p 8000:8000 -e 'DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY"' pipeline-test
 
       - name: curl_ftw
         run: |
           sleep 10
           curl -f http://localhost:8000/
+
+  sbom-scan-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: get_code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: sbom_gen_and_scan
+        uses: ./.github/actions/sbom-scan
+
+      - name: upload_sbom
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: project-sbom
+          path: sbom.json
+          compression-level: 0
