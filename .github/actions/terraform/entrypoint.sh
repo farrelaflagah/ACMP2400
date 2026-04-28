@@ -9,6 +9,6 @@ export TF_STAGE=${INPUT_TF_STAGE}
 
 cd /github/workspace/${TF_STAGE}
 
-terraform init
-terraform plan
-terraform apply --auto-approve
+terraform init -backend-config="key=${STATE_KEY}" -input=false
+terraform plan -input=false
+terraform apply -auto-approve -input=false
