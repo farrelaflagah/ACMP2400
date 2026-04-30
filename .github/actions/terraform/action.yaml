@@ -1,25 +1,28 @@
-name: 'Terraformer'
-description: 'Executes terraform plan and apply steps'
+name: 'Terraform container actions'
+description: 'Terraform action for demonstrations'
 author: 'farrelaflagah'
 inputs:
   ARM_CLIENT_ID:
-    description: 'The Azure Client ID'
+    description: 'Az client id'
     required: true
   ARM_CLIENT_SECRET:
-    description: 'The azure client secret'
+    description: 'Azure client secret'
     required: true
   ARM_SUBSCRIPTION_ID:
-    description: 'The azure sub'
+    description: 'Azure subscription ID'
     required: true
   ARM_TENANT_ID:
-    description: 'The azure tenant id'
+    description: 'Azure Tenant id'
     required: true
   STATE_KEY:
-    description: 'The unique key for state lookup'
+    description: 'Unique value to identify your state slice'
     required: true
   TF_STAGE:
-    description: 'The TF deployment stage'
+    description: 'The terraform directory to use in the planning/apply phase'
     required: true
+  DJANGO_SECRET_KEY_PROD:
+    description: 'The secret key for django to startup'
+    required: false
 runs:
   using: 'docker'
   image: 'Dockerfile'
