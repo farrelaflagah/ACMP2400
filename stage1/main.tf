@@ -17,11 +17,3 @@ terraform {
 provider "azurerm" {
   features {}
 }
-
-resource "azurerm_container_registry" "faflagah-acr" {
-  name                = "acrfaflagahacmp2400"
-  resource_group_name = "rg-faflagah"
-  location            = "Central US"
-  sku                 = "Basic"
-  admin_enabled       = false
-}
