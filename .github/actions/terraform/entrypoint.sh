@@ -1,101 +1,19 @@
-name: CI Pipeline
-
-on:
-  push:
-    branches:
-      - main
-
-permissions: {}
-
-jobs:
-  build-and-curl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: get_code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: docker_build
-        run: |
-          docker build -t pipeline-test .
-
-      - name: docker_run
-        env:
-          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-        run: |
-          docker run -d -p 8000:8000 -e 'DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY"' pipeline-test
-
-      - name: curl_ftw
-        run: |
-          sleep 10
-          curl -f http://localhost:8000/
-
-  sbom-scan-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: get_code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: sbom_gen_and_scan
-        uses: ./.github/actions/sbom-scan
-
-      - name: upload_sbom
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: project-sbom
-          path: sbom.json
-          compression-level: 0
-
-  terraform-stage-1:
-    needs: [build-and-curl, sbom-scan-and-test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: get_code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: terraform-stage-1
-        uses: ./.github/actions/terraform
-        with:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          STATE_KEY: 'faflagah'
-          TF_STAGE: 'stage1'
-
-  build-tag-push:
-    needs: terraform-stage-1
-    runs-on: ubuntu-latest
-    steps:
-      - name: get_code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: acr_login
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772
-        with:
-          registry: acrfaflagahacmp2400.azurecr.io
-          username: ${{ secrets.ARM_CLIENT_ID }}
-          password: ${{ secrets.ARM_CLIENT_SECRET }}
-
-      - name: docker_build_tag_push
-        run: |
-          docker build -t application-final .
-          docker tag application-final acrfaflagahacmp2400.azurecr.io/final
-          docker push acrfaflagahacmp2400.azurecr.io/final
-
-  tf-stage-2:
-    needs: build-tag-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: get_code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - name: terraform-stage-2
-        uses: ./.github/actions/terraform
-        with:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          STATE_KEY: 'faflagah'
-          TF_STAGE: 'stage2'
-          DJANGO_SECRET_KEY_PROD: ${{ secrets.DJANGO_SECRET_KEY_PROD }}
+#!/bin/bash
+set -e
+export ARM_CLIENT_ID=${INPUT_ARM_CLIENT_ID}
+export ARM_CLIENT_SECRET=${INPUT_ARM_CLIENT_SECRET}
+export ARM_SUBSCRIPTION_ID=${INPUT_ARM_SUBSCRIPTION_ID}
+export ARM_TENANT_ID=${INPUT_ARM_TENANT_ID}
+export TF_STAGE=${INPUT_TF_STAGE}
+export DJANGO_SECRET_KEY_PROD=${INPUT_DJANGO_SECRET_KEY_PROD}
+if [[ "$TF_STAGE" == "stage1" ]]; then
+  terraform -chdir=${INPUT_TF_STAGE} init -backend-config="key=${INPUT_STATE_KEY}.tfstate" -input=false
+  terraform -chdir=${INPUT_TF_STAGE} apply -auto-approve -input=false
+elif [[ "$TF_STAGE" == "stage2" ]]; then
+  terraform -chdir=${INPUT_TF_STAGE} init -backend-config="key=${INPUT_STATE_KEY}.tfstate" -input=false
+  terraform -chdir=${INPUT_TF_STAGE} apply -auto-approve -var="ARM_CLIENT_ID=${INPUT_ARM_CLIENT_ID}" -var="ARM_CLIENT_SECRET=${INPUT_ARM_CLIENT_SECRET}" -var="DJANGO_SECRET_KEY_PROD=${INPUT_DJANGO_SECRET_KEY_PROD}" -input=false
+elif [[ "$TF_STAGE" == "stage3" ]]; then
+  terraform -chdir=${INPUT_TF_STAGE} init -backend-config="key=${INPUT_STATE_KEY}.tfstate" -input=false
+  terraform -chdir=${INPUT_TF_STAGE} plan -out=${INPUT_TF_STAGE}.tfplan -input=false
+  terraform -chdir=${INPUT_TF_STAGE} apply ${INPUT_TF_STAGE}.tfplan
+fi

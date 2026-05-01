@@ -22,14 +22,6 @@ provider "azurerm" {
   features {}
 }
 
-resource "azurerm_container_registry" "faflagah-acr" {
-  name                = "acrfaflagahacmp2400"
-  resource_group_name = "rg-faflagah"
-  location            = "Central US"
-  sku                 = "Basic"
-  admin_enabled       = false
-}
-
 resource "azurerm_container_group" "aci-faflagah-acmp" {
   name                = "aci-faflagah-acmp"
   location            = "Central US"
@@ -49,7 +41,7 @@ resource "azurerm_container_group" "aci-faflagah-acmp" {
       protocol = "TCP"
     }
 
-    secure_environment_variables {
+    secure_environment_variables = {
       DJANGO_SECRET_KEY = var.DJANGO_SECRET_KEY_PROD
     }
   }
